@@ -1,4 +1,4 @@
-package com.fullstack.patientjournalbackend.entity;
+package com.fullstack.massageservice.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -11,54 +11,42 @@ public class Message {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "patient_id", nullable = false)
-    private Patient patient;
-
     @Column(nullable = false)
-    private String senderName;
-
-    @Column(nullable = false)
-    private String subject;
-
-    @Column(columnDefinition = "TEXT")
     private String content;
 
-    @Column(nullable = false)
     private LocalDateTime sentAt;
+    private boolean isRead;
 
-    private Boolean isRead = false;
+    // VIKTIGT: Ingen @ManyToOne till Patient längre!
+    // Vi sparar bara ID:t som en siffra.
+    @Column(name = "patient_id", nullable = false)
+    private Long patientId;
+
+    @Column(name = "practitioner_id")
+    private Long practitionerId;
+
+    // Vem skickade meddelandet? "PATIENT" eller "PRACTITIONER"
+    @Column(nullable = false)
+    private String senderType;
 
     public Message() {
         this.sentAt = LocalDateTime.now();
+        this.isRead = false;
     }
 
-    public Message(Patient patient, String senderName, String subject, String content) {
-        this.patient = patient;
-        this.senderName = senderName;
-        this.subject = subject;
-        this.content = content;
-        this.sentAt = LocalDateTime.now();
-    }
-
+    // Getters & Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-
-    public Patient getPatient() { return patient; }
-    public void setPatient(Patient patient) { this.patient = patient; }
-
-    public String getSenderName() { return senderName; }
-    public void setSenderName(String senderName) { this.senderName = senderName; }
-
-    public String getSubject() { return subject; }
-    public void setSubject(String subject) { this.subject = subject; }
-
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
-
     public LocalDateTime getSentAt() { return sentAt; }
     public void setSentAt(LocalDateTime sentAt) { this.sentAt = sentAt; }
-
-    public Boolean getIsRead() { return isRead; }
-    public void setIsRead(Boolean isRead) { this.isRead = isRead; }
+    public boolean isRead() { return isRead; }
+    public void setRead(boolean read) { isRead = read; }
+    public Long getPatientId() { return patientId; }
+    public void setPatientId(Long patientId) { this.patientId = patientId; }
+    public Long getPractitionerId() { return practitionerId; }
+    public void setPractitionerId(Long practitionerId) { this.practitionerId = practitionerId; }
+    public String getSenderType() { return senderType; }
+    public void setSenderType(String senderType) { this.senderType = senderType; }
 }
