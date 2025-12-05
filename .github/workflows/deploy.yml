@@ -3,7 +3,7 @@ name: Build and Push Messaging Service
 on:
   push:
     branches: [ "master" ]
-
+ 
 env:
   REGISTRY: ghcr.io
 
