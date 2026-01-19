@@ -2,6 +2,8 @@ package com.fullstack.massageservice.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature; // NY
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule; // NY
 import com.fullstack.massageservice.entity.Message;
 import com.fullstack.massageservice.repository.MessageRepository;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -20,7 +22,10 @@ public class MessageService {
     private final MessageRepository messageRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    // KONFIGURERA OBJECTMAPPER
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule()) // Fixar datum-felet
+            .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
 
     public MessageService(MessageRepository messageRepository,
                           KafkaTemplate<String, String> kafkaTemplate) {
@@ -30,12 +35,14 @@ public class MessageService {
 
     public void queueMessage(Message message) {
         try {
-            // Convert Object -> JSON String
             String jsonMessage = objectMapper.writeValueAsString(message);
             System.out.println("Sending JSON to Kafka: " + jsonMessage);
             kafkaTemplate.send("messages", jsonMessage);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
+            // Kasta felet vidare så vi ser 500 error i frontend om det skiter sig,
+            // istället för att svälja det och returnera 202 Accepted.
+            throw new RuntimeException("Kunde inte serialisera meddelande", e);
         }
     }
 
@@ -46,28 +53,23 @@ public class MessageService {
 
             Message message = objectMapper.readValue(messageJson, Message.class);
 
-            // FIX: Overwrite the timestamp to use Server Time.
-            // This prevents crashes if the frontend sends a format (like 'Z' timezone)
-            // that the backend's LocalDateTime deserializer doesn't like.
+            // Sätt alltid server-tid
             message.setSentAt(LocalDateTime.now());
 
-            // Handle Missing SenderType
             if (message.getSenderType() == null || message.getSenderType().isEmpty()) {
                 message.setSenderType("UNKNOWN");
             }
 
-            // Handle Missing Subject
             if (message.getSubject() == null || message.getSubject().isEmpty()) {
                 message.setSubject("No Subject");
             }
 
-            // Critical check
             if (message.getPatientId() == null) {
                 System.err.println("CONSUMER ERROR: Skipping message because patientId is NULL");
                 return;
             }
 
-            message.setId(null); // Ensure new row is created
+            message.setId(null);
             Message savedMsg = messageRepository.save(message);
             System.out.println("CONSUMER SUCCESS: Saved message ID: " + savedMsg.getId());
 
