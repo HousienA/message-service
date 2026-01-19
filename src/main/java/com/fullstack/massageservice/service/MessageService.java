@@ -41,14 +41,34 @@ public class MessageService {
     @KafkaListener(topics = "messages", groupId = "messaging-group")
     public void consumeMessage(String messageJson) {
         try {
-            System.out.println("Received raw JSON from Kafka: " + messageJson);
-            // Convert JSON String -> Message Object
+            System.out.println("CONSUMER: Received raw JSON: " + messageJson);
+
             Message message = objectMapper.readValue(messageJson, Message.class);
 
-            messageRepository.save(message);
-            System.out.println("Successfully saved message ID: " + message.getId());
-        } catch (JsonProcessingException e) {
-            System.err.println("Failed to parse message: " + e.getMessage());
+            // --- FIX 1: Handle Missing SenderType ---
+            if (message.getSenderType() == null || message.getSenderType().isEmpty()) {
+                message.setSenderType("UNKNOWN");
+            }
+
+            // --- FIX 2: Handle Missing Subject (PREVENTS DB CRASH) ---
+            if (message.getSubject() == null || message.getSubject().isEmpty()) {
+                System.out.println("CONSUMER WARNING: Subject missing, defaulting to 'No Subject'");
+                message.setSubject("No Subject");
+            }
+
+            // Critical check
+            if (message.getPatientId() == null) {
+                System.err.println("CONSUMER ERROR: Skipping message because patientId is NULL");
+                return;
+            }
+
+            message.setId(null); // Ensure new row
+            Message savedMsg = messageRepository.save(message);
+            System.out.println("CONSUMER SUCCESS: Saved message ID: " + savedMsg.getId());
+
+        } catch (Exception e) {
+            System.err.println("CONSUMER CRASHED: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 

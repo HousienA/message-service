@@ -17,6 +17,8 @@ public class Message {
     private LocalDateTime sentAt;
     private boolean isRead;
 
+    private String subject;
+
     // VIKTIGT: Ingen @ManyToOne till Patient längre!
     // Vi sparar bara ID:t som en siffra.
     @Column(name = "patient_id", nullable = false)
@@ -49,4 +51,12 @@ public class Message {
     public void setPractitionerId(Long practitionerId) { this.practitionerId = practitionerId; }
     public String getSenderType() { return senderType; }
     public void setSenderType(String senderType) { this.senderType = senderType; }
+
+    public String getSubject() {
+        return subject;
+    }
+
+    public void setSubject(String subject) {
+        this.subject = subject;
+    }
 }
