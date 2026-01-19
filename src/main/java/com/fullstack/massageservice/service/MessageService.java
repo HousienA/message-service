@@ -1,5 +1,7 @@
 package com.fullstack.massageservice.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullstack.massageservice.entity.Message;
 import com.fullstack.massageservice.repository.MessageRepository;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -15,33 +17,42 @@ import java.util.Optional;
 public class MessageService {
 
     private final MessageRepository messageRepository;
-    private final KafkaTemplate<String, Message> kafkaTemplate; // New dependency
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
-    public MessageService(MessageRepository messageRepository, KafkaTemplate<String, Message> kafkaTemplate) {
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+
+    public MessageService(MessageRepository messageRepository,
+                          KafkaTemplate<String, String> kafkaTemplate) {
         this.messageRepository = messageRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    /**
-     * PRODUCER: Sends the message to Kafka.
-     * This is what the Controller calls.
-     */
     public void queueMessage(Message message) {
-        // We assume valid patientId etc.
-        System.out.println("Sending message to Kafka topic 'messages'...");
-        kafkaTemplate.send("messages", message);
+        try {
+            // Convert Object -> JSON String
+            String jsonMessage = objectMapper.writeValueAsString(message);
+            System.out.println("Sending JSON to Kafka: " + jsonMessage);
+            kafkaTemplate.send("messages", jsonMessage);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
     }
 
-    /**
-     * CONSUMER: Listens to Kafka and saves to DB.
-     * This runs automatically in the background.
-     */
     @KafkaListener(topics = "messages", groupId = "messaging-group")
-    public void consumeMessage(Message message) {
-        System.out.println("Received message from Kafka. Saving to DB...");
-        messageRepository.save(message);
+    public void consumeMessage(String messageJson) {
+        try {
+            System.out.println("Received raw JSON from Kafka: " + messageJson);
+            // Convert JSON String -> Message Object
+            Message message = objectMapper.readValue(messageJson, Message.class);
+
+            messageRepository.save(message);
+            System.out.println("Successfully saved message ID: " + message.getId());
+        } catch (JsonProcessingException e) {
+            System.err.println("Failed to parse message: " + e.getMessage());
+        }
     }
 
+    // --- Standard Read Methods ---
 
     public List<Message> getMessagesForPatient(Long patientId) {
         return messageRepository.findByPatientId(patientId);
