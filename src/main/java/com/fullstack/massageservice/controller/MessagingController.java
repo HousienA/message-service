@@ -19,8 +19,11 @@ public class MessagingController {
     }
 
     @PostMapping
-    public ResponseEntity<Message> sendMessage(@RequestBody Message message) {
-        return ResponseEntity.ok(messageService.sendMessage(message));
+    public ResponseEntity<String> sendMessage(@RequestBody Message message) {
+        // Send to Kafka queue
+        messageService.queueMessage(message);
+        // Return success immediately (ID is generated later)
+        return ResponseEntity.accepted().body("Message queued for delivery");
     }
 
     @GetMapping("/patient/{patientId}")
