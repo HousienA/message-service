@@ -9,6 +9,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,14 +46,18 @@ public class MessageService {
 
             Message message = objectMapper.readValue(messageJson, Message.class);
 
-            // --- FIX 1: Handle Missing SenderType ---
+            // FIX: Overwrite the timestamp to use Server Time.
+            // This prevents crashes if the frontend sends a format (like 'Z' timezone)
+            // that the backend's LocalDateTime deserializer doesn't like.
+            message.setSentAt(LocalDateTime.now());
+
+            // Handle Missing SenderType
             if (message.getSenderType() == null || message.getSenderType().isEmpty()) {
                 message.setSenderType("UNKNOWN");
             }
 
-            // --- FIX 2: Handle Missing Subject (PREVENTS DB CRASH) ---
+            // Handle Missing Subject
             if (message.getSubject() == null || message.getSubject().isEmpty()) {
-                System.out.println("CONSUMER WARNING: Subject missing, defaulting to 'No Subject'");
                 message.setSubject("No Subject");
             }
 
@@ -62,7 +67,7 @@ public class MessageService {
                 return;
             }
 
-            message.setId(null); // Ensure new row
+            message.setId(null); // Ensure new row is created
             Message savedMsg = messageRepository.save(message);
             System.out.println("CONSUMER SUCCESS: Saved message ID: " + savedMsg.getId());
 
