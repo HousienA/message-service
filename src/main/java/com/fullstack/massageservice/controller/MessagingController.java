@@ -19,11 +19,15 @@ public class MessagingController {
     }
 
     @PostMapping
-    public ResponseEntity<String> sendMessage(@RequestBody Message message) {
+    public ResponseEntity<Object> sendMessage(@RequestBody Message message) {
         // Send to Kafka queue
         messageService.queueMessage(message);
-        // Return success immediately (ID is generated later)
-        return ResponseEntity.accepted().body("Message queued for delivery");
+
+        // 2. Return a Map. Spring will automatically convert this to {"status": "queued"} JSON
+        return ResponseEntity.accepted().body(java.util.Map.of(
+                "status", "queued",
+                "message", "Message queued for delivery"
+        ));
     }
 
     @GetMapping("/patient/{patientId}")
